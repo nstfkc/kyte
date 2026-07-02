@@ -1,0 +1,32 @@
+{
+  "name": "sandbox-react",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --hot src/index.ts",
+    "start": "bun src/index.ts",
+    "build": "bun build ./src/index.html --outdir dist --minify",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "ai": "^5.0.0",
+    "@ai-sdk/react": "^2.0.0",
+    "@ai-sdk/anthropic": "^2.0.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.6.0",
+    "tailwindcss": "^4.0.0",
+    "lucide-react": "^0.469.0",
+    "@radix-ui/react-slot": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/bun": "^1.1.14",
+    "bun-plugin-tailwind": "^0.0.15",
+    "typescript": "^5.7.0"
+  }
+}

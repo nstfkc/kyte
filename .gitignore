@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Turborepo
+.turbo/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+
+# Environment
+.env
+.env.local
+
+# Coverage
+coverage/
+
+# Note: bun.lockb is intentionally tracked (committed) — do not ignore it.
