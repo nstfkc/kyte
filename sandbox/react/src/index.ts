@@ -1,10 +1,6 @@
 import { serve } from "bun";
-import { anthropic } from "@ai-sdk/anthropic";
-import {
-  streamText,
-  convertToModelMessages,
-  type UIMessage,
-} from "ai";
+import { azure } from "@ai-sdk/azure";
+import { streamText, convertToModelMessages, type UIMessage } from "ai";
 import index from "./index.html";
 
 const SYSTEM_PROMPT =
@@ -15,9 +11,9 @@ async function chatHandler(req: Request): Promise<Response> {
   const { messages }: { messages: UIMessage[] } = await req.json();
 
   const result = streamText({
-    model: anthropic("claude-sonnet-4-5"),
+    model: azure("gpt-5.4"),
     system: SYSTEM_PROMPT,
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
   });
 
   return result.toUIMessageStreamResponse();
