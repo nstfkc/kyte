@@ -2,6 +2,10 @@ const operants = {
   "+": (a: (p: any) => number) => (b: (p: any) => number) => (p: any) => a(p) + b(p),
   pick: (obj: (p: any) => Record<string, any>) => (key: (p: any) => string) => (p: any) =>
     obj(p)[key(p)],
+  // Sink: a prefix operant. The extra `() =>` layer is peeled by parse's
+  // evaluate-step, so what survives is the handler `(p) => a(p)` — a function
+  // that passes the arg through, instead of a collapsed value.
+  _: (a: (p: any) => any) => () => (p: any) => a(p),
 };
 
 function isOperant(token: any): token is Operant {
@@ -19,13 +23,15 @@ function isReference(token: any): token is string {
 }
 
 type Operant = keyof typeof operants;
-type ArgPlaceholder = `@:${string}`;
+type ArgPlaceholder = "@";
 type Expr = Array<ArgPlaceholder | Operant | number | string | Expr>;
 
 const state: Record<string, any> = { count: 2 };
 
 function createParser(references: Record<string, any>) {
-  return function parse(exp: Expr) {
+  // Every node compiles to a function of the arg `p`. Recursion always goes
+  // through here so nested sub-expressions stay arg-propagating.
+  function compile(exp: Expr): (p: any) => any {
     let result: any = (fn: (arg: any) => any) => fn;
     for (const token of exp) {
       if (isOperant(token)) {
@@ -42,29 +48,27 @@ function createParser(references: Record<string, any>) {
         continue;
       }
       if (Array.isArray(token)) {
-        result = result(parse(token));
+        result = result(compile(token));
         continue;
       }
       result = result(() => token);
     }
     return result;
+  }
+
+  // Uniform: evaluate the top node once. A value expression yields its value; a
+  // "_"-wrapped handler yields the inner arg-propagating function.
+  return function parse(exp: Expr) {
+    return compile(exp)(undefined);
   };
 }
 
 const parse = createParser({ state });
-// The parsed expression IS the handler: a function of one arg `p` (the event or
-// prev value), supplied by the caller when the handler fires. No sink needed.
-const result = parse(["+", ["pick", "#:state", "count"], "@"]);
 
-console.log(result(3)); // Output: 5  (3 + state.count)
+// No "_": a value expression — parse returns the evaluated value.
+const value = parse(["+", 2, ["pick", "#:state", "count"]]);
+console.log(value); // 4  (2 + state.count)
 
-// const result = parse(["@:count", ["+", 1], "_"])(5); // should return () => 6
-// console.log(result()); // Output: 6
-
-// a => b => a() + b()
-// () => 2
-// (p) => p
-
-// p => (fn) => fn(p)
-// fn = (a) => (b) => a() + b()
-// fn(() => 3) = (b) => 3 + b() => b = ()=>2
+// Prefix "_": a handler pipe — parse returns a function that propagates the arg.
+const handler = parse(["_", ["+", "@", ["pick", "#:state", "count"]]]);
+console.log(typeof handler, handler(3)); // function 5  (3 + state.count)
