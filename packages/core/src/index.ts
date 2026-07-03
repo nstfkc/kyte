@@ -1,44 +1,70 @@
-// Grammar rules (kept deliberately simple):
-//  - Sigils:   "$x" read state, "$$x" mutate state, "@event" ambient handler ctx.
-//  - Operators are INFIX at index 1 ("$count % 2"), except prefix forms whose op
-//    is at index 0 ("?:" ternary). One operator table drives both.
-//  - NO precedence: a flat array holds at most ONE operator. Anything with a
-//    second operator must be NESTED, so the interpreter stays a dumb recursive
-//    eval() instead of a Pratt parser.
-//  - Node = [tag, props?, children?]. props and children are both OPTIONAL.
-const app = {
-  state: {
-    count: {
-      kind: "number",
-      default: 0,
-    },
-    query: {
-      kind: "string",
-      default: "",
-    },
-  },
-  effects: [],
-  render: [
-    "div",
-    {
-      // ternary with an EXPLICIT condition — no implicit pipe, no adjacency magic.
-      className: [["?:", ["$count", "%", 2], "bg-red-200", "bg-blue-200"]],
-    },
-    [
-      // "+" on a $$ target is read-modify-write: count := count + 1
-      ["button", { onClick: ["$$count", "+", 1] }, ["$count"]],
-      //
-      [
-        "input",
-        {
-          // controlled: value flows back in from state
-          value: ["$query"],
-          // ":=" is plain assign; the "^^" property chain is NESTED so the outer
-          // array has only one operator (no := / ^^ precedence question).
-          onChange: ["$$query", ":=", ["@0", "^^", "target", "^^", "value"]],
-        },
-        // children slot omitted — void element, and children are optional.
-      ],
-    ],
-  ],
+const operants = {
+  "+": (a: (p: any) => number) => (b: (p: any) => number) => (p: any) => a(p) + b(p),
+  pick: (obj: (p: any) => Record<string, any>) => (key: (p: any) => string) => (p: any) =>
+    obj(p)[key(p)],
 };
+
+function isOperant(token: any): token is Operant {
+  return typeof token === "string" && token in operants;
+}
+
+function isArgPlaceholder(token: any): token is ArgPlaceholder {
+  return typeof token === "string" && token.startsWith("@");
+}
+
+function isReference(token: any): token is string {
+  if (typeof token !== "string") return false;
+  const [prefix] = token.split(":");
+  return prefix === "#";
+}
+
+type Operant = keyof typeof operants;
+type ArgPlaceholder = `@:${string}`;
+type Expr = Array<ArgPlaceholder | Operant | number | string | Expr>;
+
+const state: Record<string, any> = { count: 2 };
+
+function createParser(references: Record<string, any>) {
+  return function parse(exp: Expr) {
+    let result: any = (fn: (arg: any) => any) => fn;
+    for (const token of exp) {
+      if (isOperant(token)) {
+        result = result(operants[token]);
+        continue;
+      }
+      if (isArgPlaceholder(token)) {
+        result = result((p: any) => p);
+        continue;
+      }
+      if (isReference(token)) {
+        const [, name] = token.split(":");
+        result = result(() => references[name as any]);
+        continue;
+      }
+      if (Array.isArray(token)) {
+        result = result(parse(token));
+        continue;
+      }
+      result = result(() => token);
+    }
+    return result;
+  };
+}
+
+const parse = createParser({ state });
+// The parsed expression IS the handler: a function of one arg `p` (the event or
+// prev value), supplied by the caller when the handler fires. No sink needed.
+const result = parse(["+", ["pick", "#:state", "count"], "@"]);
+
+console.log(result(3)); // Output: 5  (3 + state.count)
+
+// const result = parse(["@:count", ["+", 1], "_"])(5); // should return () => 6
+// console.log(result()); // Output: 6
+
+// a => b => a() + b()
+// () => 2
+// (p) => p
+
+// p => (fn) => fn(p)
+// fn = (a) => (b) => a() + b()
+// fn(() => 3) = (b) => 3 + b() => b = ()=>2
