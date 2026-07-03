@@ -1,18 +1,16 @@
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
 import dts from "vite-plugin-dts";
 
 export default defineConfig({
-  plugins: [react(), dts({ include: ["src"], rollupTypes: true })],
+  // core's entry has no exports, so api-extractor's rollupTypes has nothing to
+  // bundle and errors — emit per-file declarations instead.
+  plugins: [dts({ include: ["src"] })],
   build: {
     sourcemap: true,
     lib: {
       entry: "src/index.ts",
       formats: ["es"],
       fileName: () => "index.js",
-    },
-    rollupOptions: {
-      external: ["react", "react-dom", "react/jsx-runtime", /^@kyte\//],
     },
   },
 });

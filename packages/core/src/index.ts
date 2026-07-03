@@ -63,6 +63,10 @@ function createParser(references: Record<string, any>) {
   };
 }
 
+// This entry currently has no public API — mark it as a module so consumers
+// (and .d.ts emit) treat it as one rather than a global script.
+export {};
+
 const parse = createParser({ state });
 
 // No "_": a value expression — parse returns the evaluated value.
