@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
 import { useChat } from "@ai-sdk/react";
-import { Send, Loader2, Bot, User } from "lucide-react";
+import { Send, Loader2, Bot, User, Sun, Moon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/lib/use-theme";
 
 export function App() {
   const { messages, sendMessage, status } = useChat();
+  const { theme, toggleTheme } = useTheme();
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -33,6 +35,21 @@ export function App() {
       <header className="flex items-center gap-2 border-b px-4 py-3">
         <Bot className="size-5 text-primary" />
         <h1 className="text-sm font-semibold">AI Chat · Bun + React</h1>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={toggleTheme}
+          className="ml-auto"
+          aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+          title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+        >
+          {theme === "dark" ? (
+            <Sun className="size-4" />
+          ) : (
+            <Moon className="size-4" />
+          )}
+        </Button>
       </header>
 
       <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-4">
