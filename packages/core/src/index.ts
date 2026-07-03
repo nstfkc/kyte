@@ -24,11 +24,9 @@ function isReference(token: any): token is string {
 
 type Operant = keyof typeof operants;
 type ArgPlaceholder = "@";
-type Expr = Array<ArgPlaceholder | Operant | number | string | Expr>;
+export type Expr = Array<ArgPlaceholder | Operant | number | string | Expr>;
 
-const state: Record<string, any> = { count: 2 };
-
-function createParser(references: Record<string, any>) {
+export function createParser(references: Record<string, any>) {
   // Every node compiles to a function of the arg `p`. Recursion always goes
   // through here so nested sub-expressions stay arg-propagating.
   function compile(exp: Expr): (p: any) => any {
@@ -62,17 +60,3 @@ function createParser(references: Record<string, any>) {
     return compile(exp)(undefined);
   };
 }
-
-// This entry currently has no public API — mark it as a module so consumers
-// (and .d.ts emit) treat it as one rather than a global script.
-export {};
-
-const parse = createParser({ state });
-
-// No "_": a value expression — parse returns the evaluated value.
-const value = parse(["+", 2, ["pick", "#:state", "count"]]);
-console.log(value); // 4  (2 + state.count)
-
-// Prefix "_": a handler pipe — parse returns a function that propagates the arg.
-const handler = parse(["_", ["+", "@", ["pick", "#:state", "count"]]]);
-console.log(typeof handler, handler(3)); // function 5  (3 + state.count)

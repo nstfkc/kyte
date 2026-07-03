@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --hot src/index.ts",
-    "start": "bun src/index.ts",
+    "dev": "bun --conditions=development --hot src/index.ts",
+    "start": "bun --conditions=development src/index.ts",
     "build": "bun build ./src/index.html --outdir dist --minify",
     "typecheck": "tsc --noEmit"
   },
