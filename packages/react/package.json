@@ -22,7 +22,8 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "@kyte/core": "workspace:*"
+    "@kyte/core": "workspace:*",
+    "zod": "^4.4.3"
   },
   "peerDependencies": {
     "react": ">=18",
