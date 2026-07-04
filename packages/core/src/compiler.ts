@@ -17,9 +17,9 @@ function isStateSetter(ref: any): ref is StateSetter {
 }
 
 export function createCompiler() {
-  return (runtime: Runtime): ((state: any) => Compiler) => {
+  return (runtime: Runtime): Compiler => {
     return (state: any) => {
-      function compile(exp: Expr): () => any {
+      function compile(exp: Expr): (p?: any) => any {
         let result: any = (fn: (arg: any) => any) => fn;
         for (const token of exp) {
           if (isOperant(token)) {
@@ -41,8 +41,12 @@ export function createCompiler() {
             continue;
           }
           if (isStateSetter(token)) {
+            // Postfix: `[<value>, "$$:name"]` sets state[name] to the value
+            // accumulated so far. Deferred by `_` so it runs on the event.
             const [, name = ""] = token.split(":");
-            result = result(() => runtime.setState(name));
+            const value = result;
+            result = (p: any) => runtime.setState(name)(value(p));
+            continue;
           }
           if (Array.isArray(token)) {
             result = result(compile(token));

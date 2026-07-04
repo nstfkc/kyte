@@ -1,6 +1,6 @@
 import { createCompiler, type Compiler } from "@kyte/core";
 import type { ApplicationDefinition, Element, StateExpr } from "./schema";
-import { createContext, createElement, useContext, useSyncExternalStore } from "react";
+import { createContext, createElement, useContext, useMemo, useSyncExternalStore } from "react";
 import { useRuntime } from "./Runtime";
 import { Store } from "./Store";
 
@@ -11,20 +11,16 @@ interface WrapperContextValue {
 
 const WrapperContext = createContext({} as WrapperContextValue);
 
-function useResolveComponentTag(tag: string) {
+function resolveComponentTag(tag: string) {
   return (props: any) => createElement(tag, props);
 }
 
-const emptyStore = new Store(null);
-
 const Component = (props: { tag: string; nested: Element[] } & Record<string, any>) => {
   const { tag, nested, children, ...rest } = props;
-  const C = useResolveComponentTag(tag);
+  const C = resolveComponentTag(tag);
   const { compiler, store } = useContext(WrapperContext);
 
-  // If component doesn't read value from store, subscribe to empty store
-  const _store = JSON.stringify(props).includes("$:") ? store : emptyStore;
-  const state = useSyncExternalStore(_store.subscribe, _store.getState, _store.getState);
+  const state = useSyncExternalStore(store.subscribe, store.getState, store.getState);
 
   const parser = compiler(state);
 
@@ -58,9 +54,13 @@ export const Wrapper = (props: { definition: ApplicationDefinition }) => {
     throw new Error("Component tree must be wrapped with Runtime");
   }
 
-  const store = new Store(parseState(state));
-  const runtime = runtimeContext(store);
-  const compiler = runtime(createCompiler());
+  // Create the store (and the compiler bound to it) once per definition so
+  // state survives re-renders instead of resetting on every render.
+  const { store, compiler } = useMemo(() => {
+    const store = new Store(parseState(state));
+    const compiler = runtimeContext(store)(createCompiler());
+    return { store, compiler };
+  }, [props.definition, runtimeContext]);
 
   return (
     <WrapperContext.Provider value={{ compiler, store }}>

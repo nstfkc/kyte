@@ -11,6 +11,7 @@ const RuntimeContext = createContext({} as RuntimeContextValue);
 export const Runtime = (props: { children: ReactNode }) => {
   const runtimeContext = (store: Store<any>) =>
     createRuntimeContext({
+      // TODO: reference resolution / component catalog / global fns are stubs.
       referenceResolver: () => "",
       componentCatalog: {},
       globalFns: {},

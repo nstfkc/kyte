@@ -10,8 +10,8 @@ const element: z.ZodType<Element> = z.lazy(() =>
 );
 const render = z.array(element);
 
-export type StateExpr = z.Infer<typeof state>;
-export type RenderExpr = z.Infer<typeof render>;
+export type StateExpr = z.infer<typeof state>;
+export type RenderExpr = z.infer<typeof render>;
 
 export type ApplicationDefinition = {
   state: StateExpr;

@@ -1,8 +1,8 @@
 import type { Operant } from "./operants";
 
 export type ArgPlaceholder = "@";
-export type StateGetter = `$:{string}`;
-export type StateSetter = `$$:{string}`;
+export type StateGetter = `$:${string}`;
+export type StateSetter = `$$:${string}`;
 
 type RuntimeTokens = ArgPlaceholder | Operant | StateGetter | StateSetter;
 

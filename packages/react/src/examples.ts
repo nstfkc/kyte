@@ -1,19 +1,20 @@
 import { ApplicationDefinition } from "./schema";
 
-const staticText: ApplicationDefinition = {
+export const staticText: ApplicationDefinition = {
   state: {},
   render: [["div", { children: ["Hello world!"] }, []]],
 };
 
-const counter: ApplicationDefinition = {
+export const counter: ApplicationDefinition = {
   state: {
-    count: { type: "number", initialValue: [0] },
+    count: { type: "number", value: 0 },
   },
   render: [
     [
       "div",
+      {},
       [
-        ["span", { children: ["Count: ", "$:count"] }, []],
+        ["span", { children: ["+", "Count: ", "$:count"] }, []],
         [
           "button",
           {

@@ -1,13 +1,13 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { expect, test, vi } from "vitest";
+import { expect, test } from "vitest";
 import { Wrapper } from "./Component";
 import { Runtime } from "./Runtime";
-import type { ComponentDefinition } from "./schema";
+import type { ApplicationDefinition } from "./schema";
 
-// Render a definition into a real DOM via <Wrapper>, wrapped in the Runtime
+// Render an application definition into a real DOM, wrapped in the Runtime
 // provider it depends on. Returns the Testing Library render result.
-function renderDefinition(definition: ComponentDefinition) {
+function renderApp(definition: ApplicationDefinition) {
   return render(
     <Runtime>
       <Wrapper definition={definition} />
@@ -15,32 +15,30 @@ function renderDefinition(definition: ComponentDefinition) {
   );
 }
 
-const empty = { state: {}, props: {} };
-
 test("renders an element using its tag", () => {
-  const { container } = renderDefinition({ ...empty, render: [["div", {}, []]] });
+  const { container } = renderApp({ state: {}, render: [["div", {}, []]] });
   expect(container.innerHTML).toBe("<div></div>");
 });
 
 test("evaluates attribute expressions into props", () => {
-  const { container } = renderDefinition({
-    ...empty,
+  const { container } = renderApp({
+    state: {},
     render: [["div", { id: ["box"], "data-sum": ["+", 1, 2], children: ["Hello world!"] }, []]],
   });
   expect(container.innerHTML).toBe('<div id="box" data-sum="3">Hello world!</div>');
 });
 
 test("renders nested elements from the children slot", () => {
-  const { container } = renderDefinition({
-    ...empty,
+  const { container } = renderApp({
+    state: {},
     render: [["ul", {}, [["li", {}, []]]]],
   });
   expect(container.innerHTML).toBe("<ul><li></li></ul>");
 });
 
 test("renders multiple root elements", () => {
-  const { container } = renderDefinition({
-    ...empty,
+  const { container } = renderApp({
+    state: {},
     render: [
       ["p", {}, []],
       ["span", {}, []],
@@ -49,19 +47,35 @@ test("renders multiple root elements", () => {
   expect(container.innerHTML).toBe("<p></p><span></span>");
 });
 
-test("wires up an interactive handler referenced from props", async () => {
-  const user = userEvent.setup();
-  const onClick = vi.fn();
+test("reads initial state with a getter expression", () => {
+  const { container } = renderApp({
+    state: { count: { type: "number", value: 5 } },
+    render: [["span", { children: ["+", "Count: ", "$:count"] }, []]],
+  });
+  expect(container.innerHTML).toBe("<span>Count: 5</span>");
+});
 
-  renderDefinition({
-    state: {},
-    // The handler lives in `props`; the expression references it by name.
-    // (`props` is currently typed as an empty object, so cast through unknown.)
-    props: { onClick } as unknown as ComponentDefinition["props"],
-    render: [["button", { onClick: ["pick", ["#:props"], ["onClick"]], children: ["Click me"] }, []]],
+test("updates state via a setter on interaction", async () => {
+  const user = userEvent.setup();
+  renderApp({
+    state: { count: { type: "number", value: 0 } },
+    render: [
+      [
+        "div",
+        {},
+        [
+          ["span", { children: ["+", "Count: ", "$:count"] }, []],
+          [
+            "button",
+            { onClick: ["_", [["+", "$:count", 1], "$$:count"]], children: ["Increment"] },
+            [],
+          ],
+        ],
+      ],
+    ],
   });
 
-  await user.click(screen.getByRole("button", { name: "Click me" }));
-
-  expect(onClick).toHaveBeenCalledTimes(1);
+  expect(screen.getByText("Count: 0")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Increment" }));
+  expect(screen.getByText("Count: 1")).toBeInTheDocument();
 });
