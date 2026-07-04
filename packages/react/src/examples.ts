@@ -1,13 +1,11 @@
-import { ComponentDefinition } from "./schema";
+import { ApplicationDefinition } from "./schema";
 
-const staticText: ComponentDefinition = {
-  props: {},
+const staticText: ApplicationDefinition = {
   state: {},
   render: [["div", { children: ["Hello world!"] }, []]],
 };
 
-const counter: ComponentDefinition = {
-  props: {},
+const counter: ApplicationDefinition = {
   state: {
     count: { type: "number", initialValue: [0] },
   },
