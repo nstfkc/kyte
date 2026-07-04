@@ -1,8 +1,8 @@
 import * as z from "zod";
 import { exprSchema } from "@kyte/core";
 
-const state = z.object({});
-const props = z.object({});
+const state = z.object(z.record(z.string(), z.object({ type: z.string(), initial: exprSchema })));
+const props = z.object(z.record(z.string(), z.object({ type: z.string() })));
 
 export type Element = [string, Record<string, z.infer<typeof exprSchema>>, Element[]];
 

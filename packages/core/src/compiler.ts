@@ -1,6 +1,20 @@
-import { isArgPlaceholder, isOperant, isReference, operants } from "./operants";
+import { isArgPlaceholder, isOperant, operants } from "./operants";
 import { Runtime } from "./runtime";
-import type { Expr } from "./types";
+import type { Expr, StateGetter, StateSetter } from "./types";
+
+function isReference(token: any): token is string {
+  if (typeof token !== "string") return false;
+  const [prefix] = token.split(":");
+  return prefix === "#";
+}
+
+function isStateGetter(ref: any): ref is StateGetter {
+  return typeof ref == "string" && ref.split(":")[0] === "$";
+}
+
+function isStateSetter(ref: any): ref is StateSetter {
+  return typeof ref == "string" && ref.split(":")[0] === "$$";
+}
 
 export function createCompiler(references: Record<string, any>) {
   return (runtime: Runtime): Compiler => {
@@ -19,6 +33,15 @@ export function createCompiler(references: Record<string, any>) {
           const [, name] = token.split(":");
           result = result(() => runtime.resolveReference(references[name as any]));
           continue;
+        }
+        if (isStateGetter(token)) {
+          const [, name = ""] = token.split(":");
+          result = result(() => runtime.getState(name));
+          continue;
+        }
+        if (isStateSetter(token)) {
+          const [, name = ""] = token.split(":");
+          result = result(() => runtime.setState(name));
         }
         if (Array.isArray(token)) {
           result = result(compile(token));

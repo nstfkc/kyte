@@ -11,6 +11,8 @@ export const Runtime = (props: { children: ReactNode }) => {
     referenceResolver: () => "",
     componentCatalog: {},
     globalFns: {},
+    stateGetter: () => undefined,
+    stateSetter: () => undefined,
   });
   return (
     <RuntimeContext.Provider value={{ runtimeContext }}>{props.children}</RuntimeContext.Provider>

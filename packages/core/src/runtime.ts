@@ -4,10 +4,14 @@ interface CreateRuntimeParams {
   globalFns: Record<string, Function>;
   componentCatalog: Record<string, any>;
   referenceResolver: (ref: string) => any;
+  stateSetter: (ref: string, value: any) => void;
+  stateGetter: (ref: string) => any;
 }
 
 export type Runtime = {
   resolveReference: (ref: string) => any;
+  setState: (ref: string) => (value: any) => void;
+  getState: (ref: string) => any;
 };
 
 export function createRuntimeContext(params: CreateRuntimeParams) {
@@ -16,6 +20,12 @@ export function createRuntimeContext(params: CreateRuntimeParams) {
   }
   const runtime: Runtime = {
     resolveReference,
+    setState: (ref: string) => (value: any) => {
+      params.stateSetter(ref, value);
+    },
+    getState: (ref: string) => {
+      return params.stateGetter(ref);
+    },
   };
 
   return (fn: (runtime: Runtime) => (exp: Expr) => any) => {
