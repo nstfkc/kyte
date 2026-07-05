@@ -1,6 +1,7 @@
 import { azure } from "@ai-sdk/azure";
 import { tool, stepCountIs, type LanguageModel, type Tool, type ToolSet, type StopCondition } from "ai";
 import { applicationDefinition } from "@kyte/react";
+import { describeCatalog } from "./catalog-manifest";
 import * as z from "zod";
 
 export const model: LanguageModel = azure("gpt-5.4");
@@ -87,7 +88,12 @@ Full example — an interactive counter:
   ]
 }
 
-Keep definitions valid JSON. Prefer simple, semantic HTML.`;
+You also have a CATALOG of prebuilt shadcn/ui components. Instantiate them by their capitalized tag name (they follow shadcn/ui's usual composition and props); pass content as nested children. Prefer catalog components over raw HTML for richer UI (Button, Card, Badge, Tabs, Table, Alert, Avatar, etc.). Components that need open/close state or a provider (Dialog, Popover, Tooltip, Sidebar, Chart, Carousel, Toaster, …) may not render standalone — favor static-friendly components unless you wire up the required state/providers.
+
+Available catalog components (by family; notable props shown in parentheses):
+${describeCatalog()}
+
+Keep definitions valid JSON. Prefer catalog components; fall back to semantic HTML.`;
 
 // A loose, provider-friendly shape for the tool input. The strict schema is
 // recursive/tuple-based, which OpenAI/Azure function-calling rejects — so the

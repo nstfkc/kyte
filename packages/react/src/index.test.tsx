@@ -3,13 +3,14 @@ import userEvent from "@testing-library/user-event";
 import { expect, test } from "vitest";
 import { Wrapper } from "./Component";
 import { Runtime } from "./Runtime";
+import type { Catalog } from "./catalog";
 import type { ApplicationDefinition } from "./schema";
 
 // Render an application definition into a real DOM, wrapped in the Runtime
 // provider it depends on. Returns the Testing Library render result.
-function renderApp(definition: ApplicationDefinition) {
+function renderApp(definition: ApplicationDefinition, catalog?: Catalog) {
   return render(
-    <Runtime>
+    <Runtime catalog={catalog}>
       <Wrapper definition={definition} />
     </Runtime>,
   );
@@ -73,6 +74,38 @@ test("reads initial state with a getter expression", () => {
     render: [["span", { children: ["+", "Count: ", "$:count"] }, []]],
   });
   expect(container.innerHTML).toBe("<span>Count: 5</span>");
+});
+
+test("renders a catalog component with props and nested children", () => {
+  const Callout = ({ variant, children }: { variant?: string; children?: unknown }) => (
+    <div className="callout" data-variant={variant}>
+      {children as any}
+    </div>
+  );
+  const catalog: Catalog = { Callout: { component: Callout } };
+  const { container } = renderApp(
+    {
+      state: {},
+      render: [["Callout", { variant: ["info"] }, [["p", { children: ["Heads up"] }, []]]]],
+    },
+    catalog,
+  );
+  expect(container.innerHTML).toBe(
+    '<div class="callout" data-variant="info"><p>Heads up</p></div>',
+  );
+});
+
+test("catalog components take priority over same-named definition components", () => {
+  const FromCatalog = () => <span>catalog</span>;
+  const { container } = renderApp(
+    {
+      state: {},
+      render: [["Widget", {}, []]],
+      components: { Widget: { props: {}, render: [["span", { children: ["definition"] }, []]] } },
+    },
+    { Widget: { component: FromCatalog } },
+  );
+  expect(container.innerHTML).toBe("<span>catalog</span>");
 });
 
 test("instantiates a named component that reads its props", () => {
