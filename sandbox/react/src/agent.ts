@@ -13,9 +13,9 @@ export const SYSTEM_PROMPT = `You are an assistant embedded in a demo chat app. 
 
 Call render_application whenever the user asks you to build, show, generate, or design a UI, component, form, counter, list, etc. For plain questions, just answer in text.
 
-The tool takes a single "definition" argument: a kyte ApplicationDefinition (a JSON object, passed directly — do NOT stringify it). Its shape:
+The tool takes a single "definition" argument: a kyte ApplicationDefinition (a JSON object, passed directly — do NOT stringify it). Its shape (fields in this order; "components" is optional and comes last):
 
-{ "state": <State>, "render": <Element[]> }
+{ "state": <State>, "render": <Element[]>, "components"?: <Components> }
 
 Element is a 3-tuple: [tag, props, children]
 - tag: an HTML tag string ("div", "span", "h1", "p", "ul", "li", "table", "tr", "td", "button", "input", ...).
@@ -47,6 +47,27 @@ Example — a table body from state.orders (each { id, customer }):
   ]]
 Prefer putting list data in state and using "$each" over emitting many near-identical elements.
 
+Reusable components: define them in the top-level "components" object and instantiate them as elements by name.
+  "components": { "ComponentName": { "props": { "propName": { "type": <string> } }, "render": <Element[]> } }
+Instantiate a component with its name as the tag: ["ComponentName", { "propName": <expr> }, []]. The props object passes values in.
+Inside a component's render, read a prop with the token "#:propName" (e.g. ["pick", ["#:order"], ["id"]]).
+Component names MUST start with an uppercase letter — that is how they are recognized as components (lowercase tags are HTML). A component's render sees its props (#:) and global state ($:), but NOT the caller's list item (@) — pass what it needs as props.
+Components may reference other components, including before they are defined and recursively (e.g. a TreeNode that renders its children with $each). A referenced-but-not-yet-defined component simply renders nothing until its definition appears.
+STRONGLY PREFER decomposing the UI into small components: put lightweight component references (capitalized tags) in "render", and define the components in "components" (which comes last). Keeping "render" a thin shell of placeholders lets the UI appear progressively as the definition streams in.
+Example — a reusable row used in a list (render first, components last):
+  "render": [["table", {}, [["tbody", {}, [
+    ["$each", { "data": ["$:orders"] }, [ ["OrderRow", { "order": ["@"] }, []] ]]
+  ]]]]],
+  "components": {
+    "OrderRow": {
+      "props": { "order": { "type": "object" } },
+      "render": [["tr", {}, [
+        ["td", { "children": ["pick", ["#:order"], ["id"]] }, []],
+        ["td", { "children": ["pick", ["#:order"], ["customer"]] }, []]
+      ]]]
+    }
+  }
+
 Event handlers (like "onClick") must be wrapped in the sink operator "_": ["_", <expr>].
 To update state, use the postfix setter "$$:name": ["_", [<newValueExpr>, "$$:name"]].
 
@@ -75,6 +96,7 @@ Keep definitions valid JSON. Prefer simple, semantic HTML.`;
 const looseDefinition = z.object({
   state: z.record(z.string(), z.object({ type: z.string(), value: z.any() })),
   render: z.array(z.any()),
+  components: z.record(z.string(), z.object({ props: z.any(), render: z.array(z.any()) })).optional(),
 });
 
 // The tool verifies the model's definition and returns either the validated

@@ -18,10 +18,11 @@ function isStateSetter(ref: any): ref is StateSetter {
 
 export function createCompiler() {
   return (runtime: Runtime): Compiler => {
-    // `item` is the current list item (from `$each`). It is captured by closure
-    // — like `state` — so `@` resolves to it in both display expressions and
-    // deferred event handlers (where the `_` sink would discard a threaded arg).
-    return (state: any, item?: any) => {
+    // `item` is the current list item (from `$each`) and `props` are the current
+    // component instance's props. Both are captured by closure — like `state` —
+    // so `@` and `#:name` resolve in both display expressions and deferred event
+    // handlers (where the `_` sink would discard a threaded arg).
+    return (state: any, item?: any, props?: any) => {
       function compile(exp: Expr): (p?: any) => any {
         let result: any = (fn: (arg: any) => any) => fn;
         for (const token of exp) {
@@ -34,8 +35,9 @@ export function createCompiler() {
             continue;
           }
           if (isReference(token)) {
+            // `#:name` reads a prop passed to the current component instance.
             const [, name = ""] = token.split(":");
-            result = result(() => runtime.resolveReference(name));
+            result = result(() => props?.[name]);
             continue;
           }
           if (isStateGetter(token)) {
@@ -67,4 +69,4 @@ export function createCompiler() {
   };
 }
 
-export type Compiler = (state: any, item?: any) => (expr: Expr) => any;
+export type Compiler = (state: any, item?: any, props?: any) => (expr: Expr) => any;

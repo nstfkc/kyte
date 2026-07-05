@@ -3,16 +3,16 @@ import { createCompiler } from "./compiler";
 import { createRuntimeContext } from "./runtime";
 import type { Expr } from "./types";
 
-// Build a parser bound to `state` and an optional `item` (the `@` placeholder),
-// with a no-op runtime (references echo back).
-function parserFor(state: Record<string, any> = {}, item?: any) {
+// Build a parser bound to `state`, an optional `item` (the `@` placeholder), and
+// optional component `props` (`#:name`), with a no-op runtime.
+function parserFor(state: Record<string, any> = {}, item?: any, props?: any) {
   const applyRuntime = createRuntimeContext({
     referenceResolver: (ref) => ref,
     componentCatalog: {},
     globalFns: {},
     stateSetter: () => () => {},
   });
-  return applyRuntime(createCompiler())(state, item);
+  return applyRuntime(createCompiler())(state, item, props);
 }
 
 const parse = parserFor();
@@ -71,6 +71,11 @@ test("@ resolves to the bound item", () => {
   expect(parserFor({}, 42)(["@"])).toBe(42);
   expect(parserFor({}, { name: "Ada" })(["pick", ["@"], ["name"]])).toBe("Ada");
   expect(parserFor({}, { name: "Ada" })(["+", "Hi ", ["pick", ["@"], ["name"]]])).toBe("Hi Ada");
+});
+
+test("#:name resolves to component props", () => {
+  expect(parserFor({}, undefined, { title: "Hi" })(["#:title"])).toBe("Hi");
+  expect(parserFor({}, undefined, { order: { id: 7 } })(["pick", ["#:order"], ["id"]])).toBe(7);
 });
 
 test("@ (item) survives into a deferred handler via the _ sink", () => {
