@@ -1,6 +1,14 @@
 import { createCompiler, type Compiler } from "@kyte/core";
 import type { ApplicationDefinition, ComponentDef, Element, StateExpr } from "./schema";
-import { createContext, createElement, useContext, useMemo, useSyncExternalStore } from "react";
+import type { Catalog } from "./catalog";
+import {
+  createContext,
+  createElement,
+  useContext,
+  useMemo,
+  useSyncExternalStore,
+  type ComponentType,
+} from "react";
 import { useRuntime } from "./Runtime";
 import { Store } from "./Store";
 
@@ -8,6 +16,7 @@ interface WrapperContextValue {
   compiler: Compiler;
   store: Store<any>;
   components: Record<string, ComponentDef>;
+  catalog: Catalog;
 }
 
 const WrapperContext = createContext({} as WrapperContextValue);
@@ -28,10 +37,6 @@ function useParser(): (expr: any) => any {
   const props = useContext(PropsContext);
   const state = useSyncExternalStore(store.subscribe, store.getState, store.getState);
   return compiler(state, item, props);
-}
-
-function resolveComponentTag(tag: string) {
-  return (props: any) => createElement(tag, props);
 }
 
 // A CSS string ("color: red; margin-top: 4px") -> a React style object, with
@@ -75,22 +80,29 @@ function isComponentTag(tag: string) {
   return /^[A-Z]/.test(tag);
 }
 
-// Dispatch an element: a component reference instantiates the matching component
-// (or renders nothing if it isn't defined yet — e.g. still streaming in),
-// otherwise it renders as an HTML element.
+// Dispatch an element by tag. Uppercase tags are component references, resolved
+// in priority order: a host catalog component (a real React component, e.g.
+// shadcn/ui), then a component defined in the definition, then nothing (a
+// placeholder not yet streamed in). Lowercase tags are HTML elements.
 function Node(props: { tag: string; nested: Element[] } & Record<string, any>) {
   const { tag, nested, ...rest } = props;
-  const { components } = useContext(WrapperContext);
+  const { components, catalog } = useContext(WrapperContext);
   if (isComponentTag(tag)) {
+    const entry = catalog[tag];
+    if (entry) return <ElementNode type={entry.component} nested={nested} {...rest} />;
     const component = components[tag];
-    return component ? <ComponentInstance component={component} propExprs={rest} /> : null;
+    if (component) return <ComponentInstance component={component} propExprs={rest} />;
+    return null;
   }
-  return <HtmlComponent tag={tag} nested={nested} {...rest} />;
+  return <ElementNode type={tag} nested={nested} {...rest} />;
 }
 
-const HtmlComponent = (props: { tag: string; nested: Element[] } & Record<string, any>) => {
-  const { tag, nested, children, ...attrs } = props;
-  const C = resolveComponentTag(tag);
+// Render a concrete element type (an HTML tag string or a catalog React
+// component) with parsed props and resolved children.
+const ElementNode = (
+  props: { type: string | ComponentType<any>; nested: Element[] } & Record<string, any>,
+) => {
+  const { type, nested, children, ...attrs } = props;
   const parser = useParser();
 
   const parsedProps = Object.fromEntries(
@@ -104,7 +116,7 @@ const HtmlComponent = (props: { tag: string; nested: Element[] } & Record<string
       : children !== undefined
         ? parser(children)
         : undefined;
-  return <C {...parsedProps}>{resolvedChildren}</C>;
+  return createElement(type as any, parsedProps, resolvedChildren);
 };
 
 // Instantiate a component: evaluate the passed prop expressions in the caller's
@@ -153,7 +165,7 @@ function parseState(state: StateExpr) {
 
 export const Wrapper = (props: { definition: ApplicationDefinition }) => {
   const { render, state, components } = props.definition;
-  const { runtimeContext } = useRuntime();
+  const { runtimeContext, catalog } = useRuntime();
 
   if (!runtimeContext) {
     throw new Error("Component tree must be wrapped with Runtime");
@@ -168,7 +180,9 @@ export const Wrapper = (props: { definition: ApplicationDefinition }) => {
   }, [props.definition, runtimeContext]);
 
   return (
-    <WrapperContext.Provider value={{ compiler, store, components: components ?? {} }}>
+    <WrapperContext.Provider
+      value={{ compiler, store, components: components ?? {}, catalog: catalog ?? {} }}
+    >
       {renderElements(render)}
     </WrapperContext.Provider>
   );
