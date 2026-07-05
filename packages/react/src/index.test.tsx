@@ -75,6 +75,110 @@ test("reads initial state with a getter expression", () => {
   expect(container.innerHTML).toBe("<span>Count: 5</span>");
 });
 
+test("instantiates a named component that reads its props", () => {
+  const { container } = renderApp({
+    state: {},
+    components: {
+      Badge: {
+        props: { label: { type: "string" } },
+        render: [["span", { children: ["#:label"] }, []]],
+      },
+    },
+    render: [["Badge", { label: ["Hello"] }, []]],
+  });
+  expect(container.innerHTML).toBe("<span>Hello</span>");
+});
+
+test("components nest and forward-reference each other", () => {
+  const { container } = renderApp({
+    state: {},
+    render: [["Outer", { name: ["World"] }, []]],
+    components: {
+      // Outer references Inner, which is defined after it.
+      Outer: {
+        props: { name: { type: "string" } },
+        render: [["div", {}, [["Inner", { text: ["+", "Hello ", ["#:name"]] }, []]]]],
+      },
+      Inner: {
+        props: { text: { type: "string" } },
+        render: [["span", { children: ["#:text"] }, []]],
+      },
+    },
+  });
+  expect(container.innerHTML).toBe("<div><span>Hello World</span></div>");
+});
+
+test("a component can recurse over nested data", () => {
+  const { container } = renderApp({
+    state: {
+      tree: {
+        type: "object",
+        value: {
+          label: "root",
+          children: [
+            { label: "a", children: [] },
+            { label: "b", children: [{ label: "b1", children: [] }] },
+          ],
+        },
+      },
+    },
+    render: [["TreeNode", { node: ["$:tree"] }, []]],
+    components: {
+      TreeNode: {
+        props: { node: { type: "object" } },
+        render: [
+          [
+            "li",
+            {},
+            [
+              ["span", { children: ["pick", ["#:node"], ["label"]] }, []],
+              [
+                "ul",
+                {},
+                [
+                  [
+                    "$each",
+                    { data: ["pick", ["#:node"], ["children"]] },
+                    [["TreeNode", { node: ["@"] }, []]],
+                  ],
+                ],
+              ],
+            ],
+          ],
+        ],
+      },
+    },
+  });
+  const html = container.innerHTML;
+  expect(html).toContain("<span>root</span>");
+  expect(html).toContain("<span>a</span>");
+  expect(html).toContain("<span>b1</span>");
+});
+
+test("an undefined component reference renders nothing", () => {
+  const { container } = renderApp({
+    state: {},
+    render: [["div", {}, [["NotDefinedYet", {}, []]]]],
+  });
+  expect(container.innerHTML).toBe("<div></div>");
+});
+
+test("a component inside $each receives the item as a prop", () => {
+  const { container } = renderApp({
+    state: { rows: { type: "array", value: [{ name: "a" }, { name: "b" }] } },
+    components: {
+      Row: {
+        props: { row: { type: "object" } },
+        render: [["li", { children: ["pick", ["#:row"], ["name"]] }, []]],
+      },
+    },
+    render: [
+      ["ul", {}, [["$each", { data: ["$:rows"] }, [["Row", { row: ["@"] }, []]]]]],
+    ],
+  });
+  expect(container.innerHTML).toBe("<ul><li>a</li><li>b</li></ul>");
+});
+
 test("renders a list with $each, binding items to @", () => {
   const { container } = renderApp({
     state: {
