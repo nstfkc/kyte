@@ -31,7 +31,21 @@ Expression is a JSON value in prefix form:
   - Conditional: ["if", cond, then, else]
 - Read state with the token "$:name" (e.g. ["+", "Count: ", "$:count"]).
 
-State is an object: { "name": { "type": <string>, "value": <initial value> } }. If a UI has no state, use {}.
+State is an object: { "name": { "type": <string>, "value": <initial value> } }. If a UI has no state, use {}. A state value can be an array of objects (e.g. a list of rows).
+
+Lists: to render repeated elements from an array, use the "$each" directive element instead of hand-writing each row:
+  ["$each", { "data": <arrayExpr> }, [ <templateElement> ]]
+"data" is an expression yielding an array (e.g. ["$:orders"]). The template children are rendered once per item. Inside the template, the current item is ["@"] and a field is ["pick", ["@"], ["fieldName"]].
+Example — a table body from state.orders (each { id, customer }):
+  ["tbody", {}, [
+    ["$each", { "data": ["$:orders"] }, [
+      ["tr", {}, [
+        ["td", { "children": ["pick", ["@"], ["id"]] }, []],
+        ["td", { "children": ["pick", ["@"], ["customer"]] }, []]
+      ]]
+    ]]
+  ]]
+Prefer putting list data in state and using "$each" over emitting many near-identical elements.
 
 Event handlers (like "onClick") must be wrapped in the sink operator "_": ["_", <expr>].
 To update state, use the postfix setter "$$:name": ["_", [<newValueExpr>, "$$:name"]].

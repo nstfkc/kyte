@@ -18,7 +18,10 @@ function isStateSetter(ref: any): ref is StateSetter {
 
 export function createCompiler() {
   return (runtime: Runtime): Compiler => {
-    return (state: any) => {
+    // `item` is the current list item (from `$each`). It is captured by closure
+    // — like `state` — so `@` resolves to it in both display expressions and
+    // deferred event handlers (where the `_` sink would discard a threaded arg).
+    return (state: any, item?: any) => {
       function compile(exp: Expr): (p?: any) => any {
         let result: any = (fn: (arg: any) => any) => fn;
         for (const token of exp) {
@@ -27,7 +30,7 @@ export function createCompiler() {
             continue;
           }
           if (isArgPlaceholder(token)) {
-            result = result((p: any) => p);
+            result = result(() => item);
             continue;
           }
           if (isReference(token)) {
@@ -64,4 +67,4 @@ export function createCompiler() {
   };
 }
 
-export type Compiler = (state: any) => (expr: Expr) => any;
+export type Compiler = (state: any, item?: any) => (expr: Expr) => any;

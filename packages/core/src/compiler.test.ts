@@ -3,15 +3,16 @@ import { createCompiler } from "./compiler";
 import { createRuntimeContext } from "./runtime";
 import type { Expr } from "./types";
 
-// Build a parser bound to `state`, with a no-op runtime (references echo back).
-function parserFor(state: Record<string, any> = {}) {
+// Build a parser bound to `state` and an optional `item` (the `@` placeholder),
+// with a no-op runtime (references echo back).
+function parserFor(state: Record<string, any> = {}, item?: any) {
   const applyRuntime = createRuntimeContext({
     referenceResolver: (ref) => ref,
     componentCatalog: {},
     globalFns: {},
     stateSetter: () => () => {},
   });
-  return applyRuntime(createCompiler())(state);
+  return applyRuntime(createCompiler())(state, item);
 }
 
 const parse = parserFor();
@@ -64,4 +65,26 @@ test("operants read state via getters", () => {
 test("Expr is accepted as input type", () => {
   const expr: Expr = ["+", 1, 2];
   expect(parse(expr)).toBe(3);
+});
+
+test("@ resolves to the bound item", () => {
+  expect(parserFor({}, 42)(["@"])).toBe(42);
+  expect(parserFor({}, { name: "Ada" })(["pick", ["@"], ["name"]])).toBe("Ada");
+  expect(parserFor({}, { name: "Ada" })(["+", "Hi ", ["pick", ["@"], ["name"]]])).toBe("Hi Ada");
+});
+
+test("@ (item) survives into a deferred handler via the _ sink", () => {
+  // The item is closed over, so it is still available when the handler runs —
+  // unlike the event arg, which the sink injects at call time.
+  const sets: Array<[string, any]> = [];
+  const applyRuntime = createRuntimeContext({
+    referenceResolver: (ref) => ref,
+    componentCatalog: {},
+    globalFns: {},
+    stateSetter: (ref) => (value) => sets.push([ref, value]),
+  });
+  const parse = applyRuntime(createCompiler())({}, { id: "row-7" });
+  const handler = parse(["_", [["pick", ["@"], ["id"]], "$$:selected"]]);
+  handler({ some: "event" }); // fire it
+  expect(sets).toEqual([["selected", "row-7"]]);
 });

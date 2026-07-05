@@ -75,6 +75,77 @@ test("reads initial state with a getter expression", () => {
   expect(container.innerHTML).toBe("<span>Count: 5</span>");
 });
 
+test("renders a list with $each, binding items to @", () => {
+  const { container } = renderApp({
+    state: {
+      orders: {
+        type: "array",
+        value: [
+          { id: "A1", customer: "Ada" },
+          { id: "A2", customer: "Alan" },
+        ],
+      },
+    },
+    render: [
+      [
+        "ul",
+        {},
+        [
+          [
+            "$each",
+            { data: ["$:orders"] },
+            [
+              [
+                "li",
+                { children: ["+", ["pick", ["@"], ["id"]], ["+", " - ", ["pick", ["@"], ["customer"]]]] },
+                [],
+              ],
+            ],
+          ],
+        ],
+      ],
+    ],
+  });
+  expect(container.innerHTML).toBe("<ul><li>A1 - Ada</li><li>A2 - Alan</li></ul>");
+});
+
+test("$each event handlers capture their own item", async () => {
+  const user = userEvent.setup();
+  const { container } = renderApp({
+    state: {
+      selected: { type: "string", value: "" },
+      items: { type: "array", value: [{ id: "a" }, { id: "b" }, { id: "c" }] },
+    },
+    render: [
+      [
+        "div",
+        {},
+        [
+          ["span", { children: ["+", "Selected: ", "$:selected"] }, []],
+          [
+            "$each",
+            { data: ["$:items"] },
+            [
+              [
+                "button",
+                {
+                  onClick: ["_", [["pick", ["@"], ["id"]], "$$:selected"]],
+                  children: ["pick", ["@"], ["id"]],
+                },
+                [],
+              ],
+            ],
+          ],
+        ],
+      ],
+    ],
+  });
+
+  expect(container.querySelector("span")?.textContent).toBe("Selected: ");
+  await user.click(screen.getByRole("button", { name: "b" }));
+  expect(container.querySelector("span")?.textContent).toBe("Selected: b");
+});
+
 test("updates state via a setter on interaction", async () => {
   const user = userEvent.setup();
   renderApp({

@@ -11,7 +11,21 @@ interface WrapperContextValue {
 
 const WrapperContext = createContext({} as WrapperContextValue);
 
+// The current item inside a `$each`, exposed to expressions as the `@` placeholder.
+const ItemContext = createContext<unknown>(undefined);
+
+// A parser bound to the live store state and the current `$each` item (which
+// feeds `@`). Subscribing here re-renders the node when state changes. The item
+// is bound by closure so `@` survives into deferred event handlers.
+function useParser(): (expr: any) => any {
+  const { compiler, store } = useContext(WrapperContext);
+  const item = useContext(ItemContext);
+  const state = useSyncExternalStore(store.subscribe, store.getState, store.getState);
+  return compiler(state, item);
+}
+
 function resolveComponentTag(tag: string) {
+  // TODO: named components (from the runtime's componentCatalog) resolve here.
   return (props: any) => createElement(tag, props);
 }
 
@@ -50,11 +64,7 @@ function parseAttribute(key: string, value: any, parser: (expr: any) => any) {
 const Component = (props: { tag: string; nested: Element[] } & Record<string, any>) => {
   const { tag, nested, children, ...rest } = props;
   const C = resolveComponentTag(tag);
-  const { compiler, store } = useContext(WrapperContext);
-
-  const state = useSyncExternalStore(store.subscribe, store.getState, store.getState);
-
-  const parser = compiler(state);
+  const parser = useParser();
 
   const parsedProps = Object.fromEntries(
     Object.entries(rest).map(([key, value]) => [key, parseAttribute(key, value, parser)]),
@@ -69,6 +79,25 @@ const Component = (props: { tag: string; nested: Element[] } & Record<string, an
         : undefined;
   return <C {...parsedProps}>{resolvedChildren}</C>;
 };
+
+// `$each` renders its template children once per item in the `data` array,
+// binding each item to the `@` placeholder for that subtree.
+function EachNode(props: { data: unknown; template: Element[] }) {
+  // `useParser` is bound to the parent item, so `data` can reference `@` (e.g.
+  // a nested `$each` over a field of the outer item).
+  const parser = useParser();
+  const items = parser(props.data);
+  const list = Array.isArray(items) ? items : [];
+  return (
+    <>
+      {list.map((item, index) => (
+        <ItemContext.Provider key={index} value={item}>
+          {renderElements(props.template)}
+        </ItemContext.Provider>
+      ))}
+    </>
+  );
+}
 
 function parseState(state: StateExpr) {
   const out: Record<string, any> = {};
@@ -105,6 +134,11 @@ function renderElements(elements: Element[]) {
   return (
     <>
       {elements.map(([tag, props, children], index) => {
+        // Runtime directives use a `$` prefix. (Future component placeholders,
+        // resolved from the runtime's componentCatalog, dispatch here too.)
+        if (tag === "$each") {
+          return <EachNode key={index} data={props.data} template={children} />;
+        }
         return <Component key={index} tag={tag} {...props} nested={children} />;
       })}
     </>
