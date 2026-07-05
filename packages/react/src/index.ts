@@ -1,2 +1,4 @@
 export { Wrapper } from "./Component";
-export type { StateExpr } from "./schema";
+export { Runtime } from "./Runtime";
+export { applicationDefinition } from "./schema";
+export type { ApplicationDefinition, StateExpr, RenderExpr, Element } from "./schema";

@@ -47,6 +47,26 @@ test("renders multiple root elements", () => {
   expect(container.innerHTML).toBe("<p></p><span></span>");
 });
 
+test("compiles an object-valued style attribute", () => {
+  const { container } = renderApp({
+    state: {},
+    render: [["div", { style: { color: ["red"], marginTop: ["+", 4, "px"] } }, []]],
+  });
+  expect(container.querySelector("div")?.getAttribute("style")).toBe(
+    "color: red; margin-top: 4px;",
+  );
+});
+
+test("coerces a style expression that resolves to a CSS string", () => {
+  const { container } = renderApp({
+    state: {},
+    render: [["div", { style: ["color: red; margin-top: 4px"] }, []]],
+  });
+  expect(container.querySelector("div")?.getAttribute("style")).toBe(
+    "color: red; margin-top: 4px;",
+  );
+});
+
 test("reads initial state with a getter expression", () => {
   const { container } = renderApp({
     state: { count: { type: "number", value: 5 } },

@@ -15,6 +15,38 @@ function resolveComponentTag(tag: string) {
   return (props: any) => createElement(tag, props);
 }
 
+// A CSS string ("color: red; margin-top: 4px") -> a React style object, with
+// property names camelCased (custom `--props` kept as-is).
+function cssStringToStyle(css: string): Record<string, string> {
+  const style: Record<string, string> = {};
+  for (const declaration of css.split(";")) {
+    const sep = declaration.indexOf(":");
+    if (sep === -1) continue;
+    const prop = declaration.slice(0, sep).trim();
+    const value = declaration.slice(sep + 1).trim();
+    if (!prop) continue;
+    const key = prop.startsWith("--")
+      ? prop
+      : prop.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+    style[key] = value;
+  }
+  return style;
+}
+
+// Resolve an attribute value: an expression, or an object of expressions (e.g.
+// `style`). A `style` that resolves to a CSS string is coerced to an object so
+// React doesn't reject it.
+function parseAttribute(key: string, value: any, parser: (expr: any) => any) {
+  if (Array.isArray(value)) {
+    const resolved = parser(value);
+    return key === "style" && typeof resolved === "string" ? cssStringToStyle(resolved) : resolved;
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, parser(v)]));
+  }
+  return value;
+}
+
 const Component = (props: { tag: string; nested: Element[] } & Record<string, any>) => {
   const { tag, nested, children, ...rest } = props;
   const C = resolveComponentTag(tag);
@@ -25,7 +57,7 @@ const Component = (props: { tag: string; nested: Element[] } & Record<string, an
   const parser = compiler(state);
 
   const parsedProps = Object.fromEntries(
-    Object.entries(rest).map(([key, value]) => [key, parser(value)]),
+    Object.entries(rest).map(([key, value]) => [key, parseAttribute(key, value, parser)]),
   );
   // Nested elements (the third slot) render as child components; otherwise a
   // `children` attribute expression, when present, is parsed into content.

@@ -87,3 +87,38 @@
       "Helvetica Neue", Arial, sans-serif;
   }
 }
+
+/* Default styling for LLM-generated markup rendered by @kyte/react. These are
+   plain CSS rules (not Tailwind utilities) so they survive purging and apply to
+   whatever semantic HTML the model emits. Colors use the theme variables. */
+.kyte-render {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+.kyte-render h1 { font-size: 1.25rem; font-weight: 600; }
+.kyte-render h2 { font-size: 1.125rem; font-weight: 600; }
+.kyte-render h3 { font-size: 1rem; font-weight: 600; }
+.kyte-render ul, .kyte-render ol { padding-left: 1.25rem; }
+.kyte-render ul { list-style: disc; }
+.kyte-render ol { list-style: decimal; }
+.kyte-render a { color: var(--primary); text-decoration: underline; }
+.kyte-render button {
+  align-self: flex-start;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.kyte-render button:hover { opacity: 0.9; }
+.kyte-render input {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--foreground);
+  padding: 0.375rem 0.625rem;
+}

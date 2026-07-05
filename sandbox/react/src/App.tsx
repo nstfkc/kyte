@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
 import { useChat } from "@ai-sdk/react";
-import { Send, Loader2, Bot, User, Sun, Moon } from "lucide-react";
+import { Send, Loader2, Bot, User, Sun, Moon, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { RenderedApplication, ErrorNote } from "@/components/RenderedApplication";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
 
@@ -65,6 +66,12 @@ export function App() {
             .filter((part) => part.type === "text")
             .map((part) => part.text)
             .join("");
+          // Only the last render call matters — a corrected retry supersedes an
+          // earlier invalid attempt.
+          const lastRender = message.parts
+            .filter((part) => part.type === "tool-render_application")
+            .at(-1);
+          const showBubble = text.length > 0 || (!isUser && !lastRender);
 
           return (
             <div
@@ -86,17 +93,57 @@ export function App() {
               </div>
               <div
                 className={cn(
-                  "max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm",
-                  isUser
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-foreground",
+                  "flex max-w-[85%] flex-col gap-2",
+                  isUser && "items-end",
                 )}
               >
-                {text || (
-                  <span className="inline-flex items-center gap-1 text-muted-foreground">
-                    <Loader2 className="size-3 animate-spin" /> thinking…
-                  </span>
+                {showBubble && (
+                  <div
+                    className={cn(
+                      "whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm",
+                      isUser
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-foreground",
+                    )}
+                  >
+                    {text || (
+                      <span className="inline-flex items-center gap-1 text-muted-foreground">
+                        <Loader2 className="size-3 animate-spin" /> thinking…
+                      </span>
+                    )}
+                  </div>
                 )}
+
+                {lastRender &&
+                  (() => {
+                    // Loosely typed on the default UIMessage; the tool verifies
+                    // the definition server-side and returns it as `output`.
+                    const part = lastRender as {
+                      state: string;
+                      errorText?: string;
+                      output?:
+                        | { ok: true; definition: unknown }
+                        | { ok: false; error: string };
+                    };
+
+                    if (part.state === "output-available" && part.output) {
+                      return part.output.ok ? (
+                        <RenderedApplication definition={part.output.definition} />
+                      ) : (
+                        <ErrorNote>{part.output.error}</ErrorNote>
+                      );
+                    }
+
+                    if (part.state === "output-error") {
+                      return <ErrorNote>{part.errorText ?? "Failed to generate UI."}</ErrorNote>;
+                    }
+
+                    return (
+                      <div className="inline-flex items-center gap-2 rounded-xl border bg-muted px-3 py-2 text-xs text-muted-foreground">
+                        <Sparkles className="size-3.5 animate-pulse" /> Generating UI…
+                      </div>
+                    );
+                  })()}
               </div>
             </div>
           );
