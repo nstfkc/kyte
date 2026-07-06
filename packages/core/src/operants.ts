@@ -20,16 +20,16 @@ export const operants = {
   ">=": (a: Fn<any>) => (b: Fn<any>) => (p: any) => a(p) >= b(p),
   "<=": (a: Fn<any>) => (b: Fn<any>) => (p: any) => a(p) <= b(p),
 
-  // Logical. `and`/`or` short-circuit — the second arg only runs when needed.
-  and: (a: Fn<any>) => (b: Fn<any>) => (p: any) => a(p) && b(p),
-  or: (a: Fn<any>) => (b: Fn<any>) => (p: any) => a(p) || b(p),
-  not: (a: Fn<any>) => (p: any) => !a(p),
+  // Logical. `&&`/`||` short-circuit — the second arg only runs when needed.
+  "&&": (a: Fn<any>) => (b: Fn<any>) => (p: any) => a(p) && b(p),
+  "||": (a: Fn<any>) => (b: Fn<any>) => (p: any) => a(p) || b(p),
+  "!": (a: Fn<any>) => (p: any) => !a(p),
 
   // Control (ternary). Only the taken branch is evaluated.
-  if: (c: Fn<any>) => (t: Fn<any>) => (e: Fn<any>) => (p: any) => (c(p) ? t(p) : e(p)),
+  "?": (c: Fn<any>) => (t: Fn<any>) => (e: Fn<any>) => (p: any) => (c(p) ? t(p) : e(p)),
 
-  // Read `key` off the object produced by `obj`.
-  pick: (obj: Fn<Record<string, any>>) => (key: Fn<string>) => (p: any) => obj(p)[key(p)],
+  // Read `key` off the object produced by `obj` (`.` = member access).
+  ".": (obj: Fn<Record<string, any>>) => (key: Fn<string>) => (p: any) => obj(p)[key(p)],
 
   // Sink: defers its argument behind an extra `() =>` layer, which parse's
   // evaluate-step peels — so what survives is the handler `(p) => a(p)`.

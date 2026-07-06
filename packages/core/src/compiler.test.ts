@@ -40,15 +40,15 @@ test("comparison", () => {
 });
 
 test("logical", () => {
-  expect(parse(["and", true, false])).toBe(false);
-  expect(parse(["and", true, true])).toBe(true);
-  expect(parse(["or", false, true])).toBe(true);
-  expect(parse(["not", false])).toBe(true);
+  expect(parse(["&&", true, false])).toBe(false);
+  expect(parse(["&&", true, true])).toBe(true);
+  expect(parse(["||", false, true])).toBe(true);
+  expect(parse(["!", false])).toBe(true);
 });
 
-test("if selects only the taken branch", () => {
-  expect(parse(["if", ["==", 1, 1], "yes", "no"])).toBe("yes");
-  expect(parse(["if", ["==", 1, 2], "yes", "no"])).toBe("no");
+test("? selects only the taken branch", () => {
+  expect(parse(["?", ["==", 1, 1], "yes", "no"])).toBe("yes");
+  expect(parse(["?", ["==", 1, 2], "yes", "no"])).toBe("no");
 });
 
 test("nested composition", () => {
@@ -59,7 +59,7 @@ test("nested composition", () => {
 test("operants read state via getters", () => {
   const p = parserFor({ count: 10 });
   expect(p(["+", "$:count", 5])).toBe(15);
-  expect(p(["if", [">", "$:count", 5], "big", "small"])).toBe("big");
+  expect(p(["?", [">", "$:count", 5], "big", "small"])).toBe("big");
 });
 
 test("Expr is accepted as input type", () => {
@@ -69,13 +69,13 @@ test("Expr is accepted as input type", () => {
 
 test("@ resolves to the bound item", () => {
   expect(parserFor({}, 42)(["@"])).toBe(42);
-  expect(parserFor({}, { name: "Ada" })(["pick", ["@"], ["name"]])).toBe("Ada");
-  expect(parserFor({}, { name: "Ada" })(["+", "Hi ", ["pick", ["@"], ["name"]]])).toBe("Hi Ada");
+  expect(parserFor({}, { name: "Ada" })([".", ["@"], ["name"]])).toBe("Ada");
+  expect(parserFor({}, { name: "Ada" })(["+", "Hi ", [".", ["@"], ["name"]]])).toBe("Hi Ada");
 });
 
 test("#:name resolves to component props", () => {
   expect(parserFor({}, undefined, { title: "Hi" })(["#:title"])).toBe("Hi");
-  expect(parserFor({}, undefined, { order: { id: 7 } })(["pick", ["#:order"], ["id"]])).toBe(7);
+  expect(parserFor({}, undefined, { order: { id: 7 } })([".", ["#:order"], ["id"]])).toBe(7);
 });
 
 test("@ (item) survives into a deferred handler via the _ sink", () => {
@@ -89,7 +89,7 @@ test("@ (item) survives into a deferred handler via the _ sink", () => {
     stateSetter: (ref) => (value) => sets.push([ref, value]),
   });
   const parse = applyRuntime(createCompiler())({}, { id: "row-7" });
-  const handler = parse(["_", [["pick", ["@"], ["id"]], "$$:selected"]]);
+  const handler = parse(["_", [[".", ["@"], ["id"]], "$$:selected"]]);
   handler({ some: "event" }); // fire it
   expect(sets).toEqual([["selected", "row-7"]]);
 });

@@ -28,21 +28,21 @@ Expression is a JSON value in prefix form:
 - An operation is [operator, ...args]:
   - Arithmetic: "+", "-", "*", "/", "%"  (e.g. ["+", 1, 2] -> 3; "+" also concatenates strings)
   - Comparison: "==", "!=", ">", "<", ">=", "<="
-  - Logic: "and", "or", "not"
-  - Conditional: ["if", cond, then, else]
+  - Logic: "&&", "||", "!"
+  - Conditional: ["?", cond, then, else]
 - Read state with the token "$:name" (e.g. ["+", "Count: ", "$:count"]).
 
 State is an object: { "name": { "type": <string>, "value": <initial value> } }. If a UI has no state, use {}. A state value can be an array of objects (e.g. a list of rows).
 
 Lists: to render repeated elements from an array, use the "$each" directive element instead of hand-writing each row:
   ["$each", { "data": <arrayExpr> }, [ <templateElement> ]]
-"data" is an expression yielding an array (e.g. ["$:orders"]). The template children are rendered once per item. Inside the template, the current item is ["@"] and a field is ["pick", ["@"], ["fieldName"]].
+"data" is an expression yielding an array (e.g. ["$:orders"]). The template children are rendered once per item. Inside the template, the current item is ["@"] and a field is [".", ["@"], ["fieldName"]].
 Example — a table body from state.orders (each { id, customer }):
   ["tbody", {}, [
     ["$each", { "data": ["$:orders"] }, [
       ["tr", {}, [
-        ["td", { "children": ["pick", ["@"], ["id"]] }, []],
-        ["td", { "children": ["pick", ["@"], ["customer"]] }, []]
+        ["td", { "children": [".", ["@"], ["id"]] }, []],
+        ["td", { "children": [".", ["@"], ["customer"]] }, []]
       ]]
     ]]
   ]]
@@ -51,7 +51,7 @@ Prefer putting list data in state and using "$each" over emitting many near-iden
 Reusable components: define them in the top-level "components" object and instantiate them as elements by name.
   "components": { "ComponentName": { "props": { "propName": { "type": <string> } }, "render": <Element[]> } }
 Instantiate a component with its name as the tag: ["ComponentName", { "propName": <expr> }, []]. The props object passes values in.
-Inside a component's render, read a prop with the token "#:propName" (e.g. ["pick", ["#:order"], ["id"]]).
+Inside a component's render, read a prop with the token "#:propName" (e.g. [".", ["#:order"], ["id"]]).
 Component names MUST start with an uppercase letter — that is how they are recognized as components (lowercase tags are HTML). A component's render sees its props (#:) and global state ($:), but NOT the caller's list item (@) — pass what it needs as props.
 Components may reference other components, including before they are defined and recursively (e.g. a TreeNode that renders its children with $each). A referenced-but-not-yet-defined component simply renders nothing until its definition appears.
 STRONGLY PREFER decomposing the UI into small components: put lightweight component references (capitalized tags) in "render", and define the components in "components" (which comes last). Keeping "render" a thin shell of placeholders lets the UI appear progressively as the definition streams in.
@@ -63,8 +63,8 @@ Example — a reusable row used in a list (render first, components last):
     "OrderRow": {
       "props": { "order": { "type": "object" } },
       "render": [["tr", {}, [
-        ["td", { "children": ["pick", ["#:order"], ["id"]] }, []],
-        ["td", { "children": ["pick", ["#:order"], ["customer"]] }, []]
+        ["td", { "children": [".", ["#:order"], ["id"]] }, []],
+        ["td", { "children": [".", ["#:order"], ["customer"]] }, []]
       ]]]
     }
   }

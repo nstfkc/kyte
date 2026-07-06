@@ -164,14 +164,14 @@ test("a component can recurse over nested data", () => {
             "li",
             {},
             [
-              ["span", { children: ["pick", ["#:node"], ["label"]] }, []],
+              ["span", { children: [".", ["#:node"], ["label"]] }, []],
               [
                 "ul",
                 {},
                 [
                   [
                     "$each",
-                    { data: ["pick", ["#:node"], ["children"]] },
+                    { data: [".", ["#:node"], ["children"]] },
                     [["TreeNode", { node: ["@"] }, []]],
                   ],
                 ],
@@ -202,7 +202,7 @@ test("a component inside $each receives the item as a prop", () => {
     components: {
       Row: {
         props: { row: { type: "object" } },
-        render: [["li", { children: ["pick", ["#:row"], ["name"]] }, []]],
+        render: [["li", { children: [".", ["#:row"], ["name"]] }, []]],
       },
     },
     render: [
@@ -234,7 +234,7 @@ test("renders a list with $each, binding items to @", () => {
             [
               [
                 "li",
-                { children: ["+", ["pick", ["@"], ["id"]], ["+", " - ", ["pick", ["@"], ["customer"]]]] },
+                { children: ["+", [".", ["@"], ["id"]], ["+", " - ", [".", ["@"], ["customer"]]]] },
                 [],
               ],
             ],
@@ -266,8 +266,8 @@ test("$each event handlers capture their own item", async () => {
               [
                 "button",
                 {
-                  onClick: ["_", [["pick", ["@"], ["id"]], "$$:selected"]],
-                  children: ["pick", ["@"], ["id"]],
+                  onClick: ["_", [[".", ["@"], ["id"]], "$$:selected"]],
+                  children: [".", ["@"], ["id"]],
                 },
                 [],
               ],
