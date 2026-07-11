@@ -93,3 +93,83 @@ test("@ (item) survives into a deferred handler via the _ sink", () => {
   handler({ some: "event" }); // fire it
   expect(sets).toEqual([["selected", "row-7"]]);
 });
+
+test("@@ references the event arg, and both @ and @@ coexist in a handler", () => {
+  const sets: Array<[string, any]> = [];
+  const applyRuntime = createRuntimeContext({
+    referenceResolver: (ref) => ref,
+    componentCatalog: {},
+    globalFns: {},
+    stateSetter: (ref) => (value) => sets.push([ref, value]),
+  });
+  // @ = the row (closed over), @@ = the input event drilled for target.value.
+  const rows = [
+    { id: "a", label: "" },
+    { id: "b", label: "" },
+  ];
+  const parse = applyRuntime(createCompiler())({ rows }, rows[1]);
+  const handler = parse([
+    "_",
+    [[".=", "$:rows", ["1.label"], [".", [".", "@@", ["target"]], ["value"]]], "$$:rows"],
+  ]);
+  handler({ target: { value: "typed" } });
+  expect(sets).toEqual([
+    [
+      "rows",
+      [
+        { id: "a", label: "" },
+        { id: "b", label: "typed" },
+      ],
+    ],
+  ]);
+});
+
+test(".= sets a nested path in state to the event arg", () => {
+  const sets: Array<[string, any]> = [];
+  const applyRuntime = createRuntimeContext({
+    referenceResolver: (ref) => ref,
+    componentCatalog: {},
+    globalFns: {},
+    stateSetter: (ref) => (value) => sets.push([ref, value]),
+  });
+  const form = { foo: { bar: 1, keep: "me" }, other: true };
+  const parse = applyRuntime(createCompiler())({ form });
+  const handler = parse(["_", [[".=", "$:form", ["foo.bar"], "@@"], "$$:form"]]);
+  handler("typed"); // the @@ event arg becomes the value at foo.bar
+  expect(sets).toEqual([["form", { foo: { bar: "typed", keep: "me" }, other: true }]]);
+  // original is untouched (immutable set clones along the path)
+  expect(form).toEqual({ foo: { bar: 1, keep: "me" }, other: true });
+});
+
+test(".= addresses array indices in the path", () => {
+  const sets: Array<[string, any]> = [];
+  const applyRuntime = createRuntimeContext({
+    referenceResolver: (ref) => ref,
+    componentCatalog: {},
+    globalFns: {},
+    stateSetter: (ref) => (value) => sets.push([ref, value]),
+  });
+  const rows = [{ foo: 1 }, { foo: 2 }];
+  const grid = [
+    [1, 2],
+    [3, 4],
+  ];
+  const parse = applyRuntime(createCompiler())({ rows, grid });
+
+  parse(["_", [[".=", "$:rows", ["1.foo"], "@@"], "$$:rows"]])("Y");
+  parse(["_", [[".=", "$:grid", ["0.0"], "@@"], "$$:grid"]])("X");
+
+  const next = Object.fromEntries(sets);
+  expect(next.rows).toEqual([{ foo: 1 }, { foo: "Y" }]);
+  expect(Array.isArray(next.rows)).toBe(true);
+  expect(next.grid).toEqual([
+    ["X", 2],
+    [3, 4],
+  ]);
+  // originals untouched
+  expect(rows).toEqual([{ foo: 1 }, { foo: 2 }]);
+  expect(grid).toEqual([
+    [1, 2],
+    [3, 4],
+  ]);
+});

@@ -30,6 +30,12 @@ export function createCompiler() {
             result = result(operants[token]);
             continue;
           }
+          if (token === "@@") {
+            // The event arg the sink injects at call time — `(p) => p`. Distinct
+            // from `@` (item): a handler may need both the row and the event.
+            result = result((p: any) => p);
+            continue;
+          }
           if (isArgPlaceholder(token)) {
             result = result(() => item);
             continue;
