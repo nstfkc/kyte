@@ -8,12 +8,14 @@ interface CreateRuntimeParams {
 export type Runtime = {
   resolveReference: (ref: string) => any;
   setState: (ref: string) => (value: any) => void;
+  globalFns: Record<string, Function>;
 };
 
 export function createRuntimeContext(params: CreateRuntimeParams) {
   const runtime: Runtime = {
     resolveReference: (ref) => params.referenceResolver(ref),
     setState: (ref) => (value) => params.stateSetter(ref)(value),
+    globalFns: params.globalFns,
   };
 
   return <T,>(fn: (runtime: Runtime) => T): T => fn(runtime);

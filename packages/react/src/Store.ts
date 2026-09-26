@@ -16,5 +16,11 @@ export class Store<T> {
     this.subscribers.forEach((callback) => callback(value));
   };
 
+  // Swap the state without notifying — for a caller that is already
+  // re-rendering every subscriber (see Wrapper's state reconciliation).
+  replace = (value: T) => {
+    this.state = value;
+  };
+
   getState = (): T => this.state;
 }

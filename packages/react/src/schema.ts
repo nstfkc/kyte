@@ -1,40 +1,41 @@
 import * as z from "zod";
-import { exprSchema } from "@kyte/core";
+import type { Expr } from "@kyte/core";
+import { validateDefinition } from "./validate";
 
-const state = z.record(z.string(), z.object({ type: z.string(), value: z.any() }));
+// A bare JSON scalar is that literal value ("40px" ≡ ["40px"]); it is never
+// read as a token — `"$:count"` is the text "$:count". Arrays are expressions.
+type Value = Expr | string | number | boolean;
 
-// An attribute value is an expression, or an object of expressions — the latter
-// for object-valued props like `style` ({ marginRight: ["+", "$:spacing", "em"] }).
-const attributeValue = z.union([exprSchema, z.record(z.string(), exprSchema)]);
-
-type Expr = z.infer<typeof exprSchema>;
-type AttributeValue = Expr | Record<string, Expr>;
+// An attribute value is an expression or scalar, or an object of them — the
+// latter for object-valued props like `style` ({ marginRight: ["+", "$:spacing", "em"] }).
+type AttributeValue = Value | Record<string, Value>;
 
 export type Element = [string, Record<string, AttributeValue>, Element[]];
 
-const element: z.ZodType<Element> = z.lazy(() =>
-  z.tuple([z.string(), z.record(z.string(), attributeValue), z.array(element)]),
-);
-const render = z.array(element);
+export type StateExpr = Record<string, { type: string; value: any }>;
+export type RenderExpr = Element[];
 
-// A reusable component: a props schema (what it accepts) plus a render tree that
-// reads those props via the `#:propName` token.
-const component = z.object({
-  props: z.record(z.string(), z.object({ type: z.string() })),
-  render,
-});
+// A reusable component: a props schema (what it accepts; optional when it takes
+// none) plus a render tree that reads those props via the `#:propName` token.
+export type ComponentDef = { props?: Record<string, { type: string }>; render: Element[] };
 
-export const applicationDefinition = z.object({
-  state,
-  render,
+export type ApplicationDefinition = {
+  // The format version (see FORMAT_VERSION). Omitted means current — stamp it
+  // when storing a definition so it can be upgraded after format changes.
+  version?: number;
+  state: StateExpr;
+  render: RenderExpr;
   // Named, reusable components — kept last so they can be defined after the
   // render tree that references them. A render element whose tag matches a name
   // here instantiates that component, passing the element's props as its props.
-  components: z.record(z.string(), component).optional(),
-});
+  components?: Record<string, ComponentDef>;
+};
 
-export type StateExpr = z.infer<typeof state>;
-export type RenderExpr = z.infer<typeof render>;
-export type ComponentDef = z.infer<typeof component>;
-
-export type ApplicationDefinition = z.infer<typeof applicationDefinition>;
+// Validates structure and expressions (operator arity, token scope, declared
+// state) via `validateDefinition`, whose issues name the likely mistake — so a
+// model can fix its output from the messages alone.
+export const applicationDefinition = z.unknown().superRefine((value, ctx) => {
+  for (const issue of validateDefinition(value)) {
+    ctx.addIssue({ code: "custom", message: issue.message, path: issue.path, input: value });
+  }
+}) as unknown as z.ZodType<ApplicationDefinition>;
