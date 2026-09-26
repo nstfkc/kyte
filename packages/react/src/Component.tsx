@@ -14,6 +14,7 @@ import {
   type ReactNode,
 } from "react";
 import { parsePartialDefinition } from "./partial";
+import { upgradeDefinition } from "./version";
 import { useRuntime } from "./Runtime";
 import { Store } from "./Store";
 
@@ -315,7 +316,7 @@ export const Wrapper = (props: WrapperProps) => {
     () =>
       partial
         ? parsePartialDefinition(props.definition)
-        : (props.definition as ApplicationDefinition),
+        : (upgradeDefinition(props.definition) as ApplicationDefinition),
     [partial, props.definition],
   );
   const { render, state, components } = definition;

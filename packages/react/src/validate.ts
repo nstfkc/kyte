@@ -1,4 +1,5 @@
 import { isOperant, validateExpression } from "@kyte/core";
+import { FORMAT_VERSION } from "./version";
 
 export type DefinitionIssue = { path: (string | number)[]; message: string };
 
@@ -28,6 +29,17 @@ export function validateDefinition(definition: unknown): DefinitionIssue[] {
   if (!isObject(definition)) {
     report([], 'the definition must be an object: { "state": {...}, "render": [...], "components"?: {...} }');
     return issues;
+  }
+
+  const { version } = definition;
+  if (version !== undefined) {
+    if (typeof version !== "number" || !Number.isInteger(version) || version < 1) {
+      report(["version"], `version must be a positive integer (current: ${FORMAT_VERSION})`);
+    } else if (version > FORMAT_VERSION) {
+      report(["version"], `version ${version} is newer than this kyte supports (${FORMAT_VERSION}); upgrade kyte`);
+    } else if (version < FORMAT_VERSION) {
+      report(["version"], `version ${version} is outdated (current: ${FORMAT_VERSION}); run upgradeDefinition first`);
+    }
   }
 
   const stateNames = new Set<string>();

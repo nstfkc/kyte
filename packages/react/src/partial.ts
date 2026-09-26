@@ -1,3 +1,4 @@
+import { upgradeDefinition } from "./version";
 import type { ApplicationDefinition, ComponentDef, Element, StateExpr } from "./schema";
 
 // Marks a value that was cut off before anything usable arrived (e.g. `tr` of
@@ -184,7 +185,8 @@ function normalizeComponents(value: unknown): Record<string, ComponentDef> {
 
 // Turn a snapshot of a still-streaming definition — raw JSON text, or an object
 // from a best-effort partial parse — into a renderable ApplicationDefinition.
-// Malformed or incomplete pieces are dropped rather than rejected. Never throws.
+// Malformed or incomplete pieces are dropped rather than rejected, and older
+// format versions are upgraded (upgradeDefinition). Never throws.
 export function parsePartialDefinition(input: unknown): ApplicationDefinition {
   let value = input;
   if (typeof input === "string") {
@@ -192,8 +194,10 @@ export function parsePartialDefinition(input: unknown): ApplicationDefinition {
     const start = input.indexOf("{");
     value = start === -1 ? undefined : parsePartialJson(input.slice(start));
   }
+  value = upgradeDefinition(value);
   if (!isObject(value)) return { state: {}, render: [] };
   return {
+    ...(typeof value.version === "number" ? { version: value.version } : {}),
     state: normalizeState(value.state),
     render: normalizeElements(value.render),
     components: normalizeComponents(value.components),

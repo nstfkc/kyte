@@ -20,6 +20,9 @@ export type RenderExpr = Element[];
 export type ComponentDef = { props?: Record<string, { type: string }>; render: Element[] };
 
 export type ApplicationDefinition = {
+  // The format version (see FORMAT_VERSION). Omitted means current — stamp it
+  // when storing a definition so it can be upgraded after format changes.
+  version?: number;
   state: StateExpr;
   render: RenderExpr;
   // Named, reusable components — kept last so they can be defined after the
