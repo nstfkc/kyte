@@ -173,3 +173,39 @@ test(".= addresses array indices in the path", () => {
     [3, 4],
   ]);
 });
+
+test("function caller", () => {
+  const sets: Array<[string, any]> = [];
+  const applyRuntime = createRuntimeContext({
+    referenceResolver: (ref) => ref,
+    componentCatalog: {},
+    globalFns: {
+      pow: (base: number) => Math.pow(base, 2),
+    },
+    stateSetter: (ref) => (value) => sets.push([ref, value]),
+  });
+
+  const parse = applyRuntime(createCompiler())({});
+
+  const result = parse(["()", "fn:pow", 3]);
+  expect(result).toBe(9);
+});
+
+test("multi-arg global fns curry and unfold with nested ()", () => {
+  const sets: Array<[string, any]> = [];
+  const applyRuntime = createRuntimeContext({
+    referenceResolver: (ref) => ref,
+    componentCatalog: {},
+    globalFns: {
+      // Unary by convention: a 2-arg fn is curried.
+      add: (a: number) => (b: number) => a + b,
+    },
+    stateSetter: (ref) => (value) => sets.push([ref, value]),
+  });
+
+  const parse = applyRuntime(createCompiler())({});
+
+  // Inner () yields the partial (b) => 1 + b; outer () applies 2.
+  const result = parse(["()", ["()", "fn:add", 1], 2]);
+  expect(result).toBe(3);
+});

@@ -8,6 +8,10 @@ function isReference(token: any): token is string {
   return prefix === "#";
 }
 
+function isGlobalFnRef(token: any): token is string {
+  return typeof token === "string" && token.split(":")[0] === "fn";
+}
+
 function isStateGetter(ref: any): ref is StateGetter {
   return typeof ref == "string" && ref.split(":")[0] === "$";
 }
@@ -44,6 +48,12 @@ export function createCompiler() {
             // `#:name` reads a prop passed to the current component instance.
             const [, name = ""] = token.split(":");
             result = result(() => props?.[name]);
+            continue;
+          }
+          if (isGlobalFnRef(token)) {
+            // `fn:name` resolves a global function to its value; `()` applies it.
+            const [, name = ""] = token.split(":");
+            result = result(() => runtime.globalFns[name]);
             continue;
           }
           if (isStateGetter(token)) {

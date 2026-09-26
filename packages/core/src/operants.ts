@@ -49,6 +49,13 @@ export const operants = {
   ".=": (obj: Fn<any>) => (path: Fn<string>) => (value: Fn<any>) => (p: any) =>
     setIn(obj(p), path(p), value(p)),
 
+  // Function application: apply the function `fn` produces to `arg`. Global
+  // functions are unary by convention (`fn:name` resolves one), so multi-arg
+  // calls curry — unfold them with nested `()`, e.g. ["()", ["()", "fn:add",
+  // 1], 2]. Applies any function value, not just `fn:` globals — a curried
+  // partial or a function held in state/props works the same way.
+  "()": (fn: Fn<any>) => (arg: Fn<any>) => (p: any) => fn(p)(arg(p)),
+
   // Sink: defers its argument behind an extra `() =>` layer, which parse's
   // evaluate-step peels — so what survives is the handler `(p) => a(p)`.
   _: (a: Fn<any>) => () => (p: any) => a(p),
