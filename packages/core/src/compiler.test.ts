@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import { createCompiler } from "./compiler";
 import { createRuntimeContext } from "./runtime";
+import { operants } from "./operants";
 import type { Expr } from "./types";
 
 // Build a parser bound to `state`, an optional `item` (the `@` placeholder), and
@@ -208,4 +209,40 @@ test("multi-arg global fns curry and unfold with nested ()", () => {
   // Inner () yields the partial (b) => 1 + b; outer () applies 2.
   const result = parse(["()", ["()", "fn:add", 1], 2]);
   expect(result).toBe(3);
+});
+
+test("a lone operator is literal text", () => {
+  for (const op of Object.keys(operants)) {
+    expect(parse([op] as Expr)).toBe(op);
+    expect(parse(["+", ["+", "a ", [op] as Expr], " b"])).toBe(`a ${op} b`);
+  }
+  // Other lone tokens keep their meaning.
+  expect(parserFor({ n: 1 }, "item")(["$:n"])).toBe(1);
+  expect(parserFor({}, "item")(["@"])).toBe("item");
+});
+
+test("+ folds any number of arguments left to right", () => {
+  expect(parse(["+", 1, 2, 3])).toBe(6);
+  expect(parserFor({ year: 2026 })(["+", "© ", ["$:year"], " Acme"])).toBe("© 2026 Acme");
+  expect(parse(["+", 1, 2, "x", 3])).toBe("3x3");
+});
+
+test("variadic + keeps a trailing setter postfix", () => {
+  const sets: Array<[string, any]> = [];
+  const applyRuntime = createRuntimeContext({
+    referenceResolver: (ref) => ref,
+    componentCatalog: {},
+    globalFns: {},
+    stateSetter: (ref) => (value) => sets.push([ref, value]),
+  });
+  const handler = applyRuntime(createCompiler())({ n: 1 })(["_", ["+", "$:n", 1, 2, "$$:n"]]);
+  handler();
+  expect(sets).toEqual([["n", 4]]);
+});
+
+test("+ with one argument is the identity", () => {
+  expect(parse(["+", "POST /v1/invoices"])).toBe("POST /v1/invoices");
+  expect(parserFor({ n: 3 })(["+", "$:n"])).toBe(3);
+  expect(parse(["+", ["*", 2, 3]])).toBe(6);
+  expect(parse(["+", ["/"]])).toBe("/");
 });

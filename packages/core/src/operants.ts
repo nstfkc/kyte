@@ -15,7 +15,9 @@ function setIn(obj: any, path: string, value: any): any {
 // Each operant is curried: it consumes exactly as many following tokens as its
 // arity (each already compiled to `(p) => value`), then returns `(p) => result`.
 export const operants = {
-  // Arithmetic (binary). `+` also concatenates strings, matching JS `+`.
+  // Arithmetic (binary). `+` also concatenates strings, matching JS `+`, and is
+  // variadic: the compiler folds ["+", a, b, c] into ["+", ["+", a, b], c], and
+  // ["+", x] is just x.
   "+": (a: Fn<any>) => (b: Fn<any>) => (p: any) => a(p) + b(p),
   "-": (a: Fn<number>) => (b: Fn<number>) => (p: any) => a(p) - b(p),
   "*": (a: Fn<number>) => (b: Fn<number>) => (p: any) => a(p) * b(p),
@@ -66,7 +68,36 @@ export function isOperant(token: any): token is Operant {
 }
 
 export function isArgPlaceholder(token: any): token is ArgPlaceholder {
-  return typeof token === "string" && token.startsWith("@");
+  // Exactly "@" — other "@…" strings (e.g. "@handle") are literal text. "@@"
+  // (the event arg) is matched by the compiler before this check.
+  return token === "@";
 }
 
 export type Operant = keyof typeof operants;
+
+// Operants that take their arity *or more* arguments, folded left to right.
+export const variadicOperants: ReadonlySet<Operant> = new Set<Operant>(["+"]);
+
+// How many arguments each operant consumes (the minimum, for variadic ones). Typed as `Record<Operant, number>`
+// so a new operant must declare its arity (the validator relies on it).
+export const operantArity: Record<Operant, number> = {
+  "+": 1, // variadic: ["+", x] is x, more args fold left
+  "-": 2,
+  "*": 2,
+  "/": 2,
+  "%": 2,
+  "==": 2,
+  "!=": 2,
+  ">": 2,
+  "<": 2,
+  ">=": 2,
+  "<=": 2,
+  "&&": 2,
+  "||": 2,
+  "!": 1,
+  "?": 3,
+  ".": 2,
+  ".=": 3,
+  "()": 2,
+  _: 1,
+};
