@@ -5,6 +5,19 @@ export type DefinitionIssue = { path: (string | number)[]; message: string };
 
 type Scope = { item: boolean; props: boolean };
 
+// How to write a token-shaped bare string as the token it was meant to be.
+function tokenFix(value: string): string | undefined {
+  if (value === "@") return 'to pass the list item write ["@"]';
+  if (value === "@@") return 'to use the event argument write ["@@"]';
+  const match = /^(\$\$|\$|#|fn):([A-Za-z_][\w-]*)$/.exec(value);
+  if (!match) return undefined;
+  const [, prefix, name] = match;
+  if (prefix === "$") return `to read state write ["${value}"]`;
+  if (prefix === "$$") return `to set state use a handler: ["_", [<value>, "${value}"]]`;
+  if (prefix === "#") return `to read a component prop write ["${value}"]`;
+  return `to call the function write ["()", "fn:${name}", <arg>]`;
+}
+
 const DIRECTIVES = new Set(["$each", "$if"]);
 const DIRECTIVE_PROPS: Record<string, string> = { $each: "data", $if: "condition" };
 
@@ -61,6 +74,7 @@ export function validateDefinition(definition: unknown): DefinitionIssue[] {
 
   function checkValue(key: string, value: unknown, path: (string | number)[], scope: Scope) {
     if (value === null) return report(path, `"${key}" is null; omit the prop instead`);
+    if (typeof value === "string") return checkBareString(key, value, path);
     if (Array.isArray(value)) {
       if (key === "children" && value.some(looksLikeElement)) {
         return report(path, 'the "children" prop must be text or an expression; put nested elements in the element\'s 3rd slot');
@@ -79,9 +93,18 @@ export function validateDefinition(definition: unknown): DefinitionIssue[] {
           report([...path, inner], `"${key}.${inner}" must be a plain value or an expression, not ${v === null ? "null" : "an object"}`);
         } else if (Array.isArray(v)) {
           checkExpression(v, [...path, inner], scope);
+        } else if (typeof v === "string") {
+          checkBareString(`${key}.${inner}`, v, [...path, inner]);
         }
       }
     }
+  }
+
+  // A bare string is always literal text, so one that is exactly a token is
+  // almost certainly a token written without its array — a silent bug.
+  function checkBareString(key: string, value: string, path: (string | number)[]) {
+    const fix = tokenFix(value);
+    if (fix) report(path, `"${key}": ${JSON.stringify(value)} is the text ${JSON.stringify(value)}; ${fix}`);
   }
 
   function checkElements(elements: unknown, path: (string | number)[], scope: Scope) {
@@ -114,6 +137,8 @@ export function validateDefinition(definition: unknown): DefinitionIssue[] {
       const required = DIRECTIVE_PROPS[tag];
       if (required && !(required in props)) {
         report([...path, 1], `${tag} needs a "${required}" expression: ["${tag}", { "${required}": <expr> }, [...]]`);
+      } else if (tag === "$each" && !Array.isArray(props.data) && tokenFix(String(props.data)) === undefined) {
+        report([...path, 1, "data"], '$each "data" must be an expression yielding an array, e.g. ["$:items"]');
       }
       for (const [key, value] of Object.entries(props)) {
         if (DIRECTIVES.has(key)) {

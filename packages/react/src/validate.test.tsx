@@ -139,3 +139,36 @@ test("one-element literals in children aren't mistaken for elements", () => {
     }),
   ).toEqual([]);
 });
+
+test("token-shaped bare strings are flagged with the fix", () => {
+  expect(
+    issues({
+      state: { count: { type: "number", value: 0 }, items: { type: "array", value: [] } },
+      render: [
+        ["$each", { data: ["$:items"] }, [["Card", { item: "@" }, []]]],
+        ["span", { children: "$:count", style: { width: "#:w" } }, []],
+        ["button", { onClick: ["_", [1, "$$:count"]], "data-x": "$$:count", title: "fn:fmt" }, []],
+        ["$each", { data: "$:items" }, []],
+        ["$each", { data: "items" }, []],
+      ],
+      components: { Card: { render: [] } },
+    }),
+  ).toEqual([
+    'render.0.2.0.1.item: "item": "@" is the text "@"; to pass the list item write ["@"]',
+    'render.1.1.children: "children": "$:count" is the text "$:count"; to read state write ["$:count"]',
+    'render.1.1.style.width: "style.width": "#:w" is the text "#:w"; to read a component prop write ["#:w"]',
+    'render.2.1.data-x: "data-x": "$$:count" is the text "$$:count"; to set state use a handler: ["_", [<value>, "$$:count"]]',
+    'render.2.1.title: "title": "fn:fmt" is the text "fn:fmt"; to call the function write ["()", "fn:fmt", <arg>]',
+    'render.3.1.data: "data": "$:items" is the text "$:items"; to read state write ["$:items"]',
+    'render.4.1.data: $each "data" must be an expression yielding an array, e.g. ["$:items"]',
+  ]);
+});
+
+test("ordinary text that merely contains token characters is fine", () => {
+  expect(
+    issues({
+      state: {},
+      render: [["p", { children: "Follow @kyte", title: "$: price", "aria-label": "#1 pick" }, []]],
+    }),
+  ).toEqual([]);
+});

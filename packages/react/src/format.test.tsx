@@ -35,13 +35,19 @@ test("bare scalars in props and style are literal values", () => {
   ).toBe('<section id="pricing" tabindex="0" style="padding: 40px 0px; opacity: 0.5;"><p>Plans</p></section>');
 });
 
-test("a bare string is never read as a token", () => {
-  expect(
-    html({
-      state: { count: { type: "number", value: 3 } },
-      render: [["span", { children: "$:count", title: "@" }, []], ["b", { children: ["$:count"] }, []]],
-    }),
-  ).toBe('<span title="@">$:count</span><b>3</b>');
+test("a bare string is never read as a token at runtime", () => {
+  // The validator rejects these as likely mistakes; rendering stays literal.
+  const { container } = render(
+    <Runtime>
+      <Wrapper
+        definition={{
+          state: { count: { type: "number", value: 3 } },
+          render: [["span", { children: "$:count", title: "@" }, []], ["b", { children: ["$:count"] }, []]],
+        }}
+      />
+    </Runtime>,
+  );
+  expect(container.innerHTML).toBe('<span title="@">$:count</span><b>3</b>');
 });
 
 test("bare scalars pass through component props", () => {
