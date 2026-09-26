@@ -172,3 +172,19 @@ test("ordinary text that merely contains token characters is fine", () => {
     }),
   ).toEqual([]);
 });
+
+test("forwarded handlers are valid; non-function on* expressions are not", () => {
+  expect(
+    issues({
+      state: { n: { type: "number", value: 0 }, open: { type: "boolean", value: false } },
+      render: [
+        ["Btn", { onPress: ["_", [["+", "$:n", 1], "$$:n"]] }, []],
+        ["button", { onClick: ["?", "$:open", ["_", [false, "$$:open"]], ["_", [true, "$$:open"]]] }, []],
+        ["button", { onClick: ["+", "$:n", 1] }, []],
+      ],
+      components: {
+        Btn: { render: [["button", { onClick: ["#:onPress"], onFocus: [".", ["#:handlers"], ["focus"]] }, []]] },
+      },
+    }),
+  ).toEqual(['render.2.1.onClick: event handler "onClick" must be wrapped in the sink: ["_", <expr>]']);
+});

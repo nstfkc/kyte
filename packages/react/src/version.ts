@@ -22,11 +22,16 @@ export function createUpgrader(migrations: Migrations, current: number) {
     // with `version` so they can be upgraded later.
     if (version === undefined || version === current) return definition;
     // Newer or malformed: leave as is (validateDefinition reports it).
-    if (typeof version !== "number" || !Number.isInteger(version) || version > current) {
+    if (
+      typeof version !== "number" ||
+      !Number.isInteger(version) ||
+      version < 1 ||
+      version > current
+    ) {
       return definition;
     }
     let upgraded = definition;
-    for (let from = Math.max(version, 1); from < current; from++) {
+    for (let from = version; from < current; from++) {
       const migrate = migrations[from];
       if (migrate) upgraded = migrate(upgraded);
     }

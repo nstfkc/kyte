@@ -48,3 +48,12 @@ test("parsePartialDefinition keeps the version and the Wrapper renders versioned
   );
   expect(container.innerHTML).toBe("<p>hi</p>");
 });
+
+test("malformed versions are never stamped as current", () => {
+  const upgrade = createUpgrader({}, 3);
+  for (const version of [0, -3, 1.5, "2"]) {
+    const definition = { ...page, version };
+    expect(upgrade(definition)).toBe(definition);
+    expect(upgradeDefinition(definition)).toBe(definition);
+  }
+});

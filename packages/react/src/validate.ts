@@ -5,6 +5,23 @@ export type DefinitionIssue = { path: (string | number)[]; message: string };
 
 type Scope = { item: boolean; props: boolean };
 
+const isReadToken = (token: unknown) =>
+  typeof token === "string" && (token === "@" || token === "@@" || /^(\$|#|fn):/.test(token));
+
+// Whether an `on*` expression can evaluate to a function: a sink ["_", …], a
+// forwarded handler (["#:onPress"], state, `.`/`()` results), or "?" choosing
+// between such. Arithmetic, comparisons, literals and setters can't — a setter
+// outside "_" would even run during render.
+function canBeHandler(expr: unknown): boolean {
+  if (isReadToken(expr)) return true;
+  if (!Array.isArray(expr) || expr.length === 0) return false;
+  const [head, ...args] = expr;
+  if (args.length === 0) return Array.isArray(head) ? canBeHandler(head) : isReadToken(head);
+  if (head === "_" || head === "." || head === "()") return true;
+  if (head === "?") return canBeHandler(args[1]) || canBeHandler(args[2]);
+  return false;
+}
+
 // How to write a token-shaped bare string as the token it was meant to be.
 function tokenFix(value: string): string | undefined {
   if (value === "@") return 'to pass the list item write ["@"]';
@@ -79,7 +96,7 @@ export function validateDefinition(definition: unknown): DefinitionIssue[] {
       if (key === "children" && value.some(looksLikeElement)) {
         return report(path, 'the "children" prop must be text or an expression; put nested elements in the element\'s 3rd slot');
       }
-      if (/^on[A-Z]/.test(key) && value[0] !== "_") {
+      if (/^on[A-Z]/.test(key) && !canBeHandler(value)) {
         return report(path, `event handler "${key}" must be wrapped in the sink: ["_", <expr>]`);
       }
       return checkExpression(value, path, scope);
